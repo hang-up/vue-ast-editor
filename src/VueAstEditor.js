@@ -1,4 +1,5 @@
 const j = require('jscodeshift');
+const parser = require('./parser/babylon.forked')
 const posthtml = require('posthtml');
 const { render } = require('./htmlrender');
 const { findObjProp, toSource, getDefaultExport, objProp, addToTop, parse, object } = require('./node-utils');
@@ -13,7 +14,7 @@ function emptyFunc() {
 module.exports = class VueAstEditor {
     constructor(text) {
         // ideally this would be synchronous, but the HTML tree returned by synchronous parser does not have the same methods
-        this.isDone = new Promise(resolve => {
+        this.isDone = new Promise((resolve, reject) => {
             posthtml().process(text, { recognizeSelfClosing: true, closingSingleTag: 'slash', render }).then(results => {
                 this.results = results;
                 this.tree = results.tree;
@@ -26,7 +27,7 @@ module.exports = class VueAstEditor {
                     // else you get "unterminated string constant" errors because
                     // the slashes get used up by the parser
                     let content = node.content.join('').replace(/\\/g, '\\\\');
-                    this.script = j(content);
+                    this.script = j.withParser(parser)(content);
                     return node;
                 });
                 let found = false;
@@ -38,7 +39,9 @@ module.exports = class VueAstEditor {
                 });
                 if (!this.script) this.script = j('');
                 resolve();
-            });
+            }).catch(e => {
+                console.log(e)
+            }) ;
         });
     }
 
